@@ -1,0 +1,59 @@
+<h2 style="text-align: center; font-weight: bold; font-size: 1.5em; margin-bottom: 10px;">
+  <%= calendar.month %>월
+</h2>
+<%= form_tag({}, :data => {:cm_url => issues_context_menu_path}) do -%>
+    <%= hidden_field_tag 'back_url', url_for(:params => request.query_parameters), :id => nil %>
+    <ul class="cal">
+      <li scope="col" title="<%= l(:label_week) %>" class="calhead week-number"></li>
+      <% 7.times do |i| %>
+        <li scope="col" class="calhead"><%= day_name((calendar.first_wday + i) % 7) %></li>
+      <% end %>
+      <% calendar.format_month.each_slice(7) do |week| %>
+        <li class='week-number'>
+          <span class="label-week"><%= l(:label_week) %></span> <%= calendar.week_number week.first %>
+        </li>
+        <% week.each do |day| %>
+        <li class="<%= calendar.day_css_classes day %> calbody">
+          <p class="day-num"><%= day.day %>
+            <span class="abbr-day">(<%= abbr_day_name(day.cwday) %>)</span>
+          </p>
+          <% calendar.events_on(day).each do |i| %>
+            <% if i.is_a? Issue %>
+              <% starting = day == i.start_date %>
+              <% ending = day == i.due_date %>
+              <%# 이슈 우선순위에 따른 클래스 추가 %>
+              <% 
+                css_classes_list = i.css_classes.to_s.split
+                priority_class = i.respond_to?(:priority) && i.priority ? "priority-#{i.priority.name.parameterize}" : "priority-default"
+                all_classes = css_classes_list + ['tooltip', 'hascontextmenu', priority_class]
+              %>
+              <%= tag.div(class: all_classes, starting: starting, ending: ending) do %>
+                <%= i.subject %>
+                <span class="tip"><%= render_issue_tooltip i %></span>
+                <%= check_box_tag 'ids[]', i.id, false, :style => 'display:none;', :id => nil %>
+              <% end %>
+            <% elsif i.is_a? Version %>
+            <!--
+              <span class="icon icon-package">
+                
+                <%= sprite_icon 'package' %>
+                <%= "#{i.project} -" unless @project && @project == i.project %>
+                <%= link_to_version i %>
+              </span>
+              -->
+              <div style="border: 1px solid #009; padding: 3px; background-color: #16b; color: white; font-weight: bold;">
+                <%= i.name %>
+              </div>
+            <% elsif i.is_a? TxMoreCalendarHelper::CalendarEvent %>
+              <div style="border: 1px solid #009; padding: 3px; background-color: #16b; color: white; opacity: 0.5;">
+                <%= i.name %>
+              </div>
+            <% end %>
+          <% end %>
+        </li>
+        <% end %>
+      <% end %>
+    </ul>
+    <% end %>
+
+    <%= context_menu %>

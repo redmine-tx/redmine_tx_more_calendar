@@ -1,0 +1,142 @@
+<%
+  # 유니크한 캘린더 ID 생성
+  random_id = rand( 1..999999 )
+  calendar_id = "calendar_#{random_id}"
+  calendar_date ||= Date.today
+
+  color = [ nil, [ "#eee", "#333" ], [ "#cdf", "#333" ], [ "#fdd", "#333" ], [ "#faa", "#333" ], [ "#c00", "#fff" ] ]
+
+  holidays = Holiday.for_date_range( calendar_date.beginning_of_month, calendar_date.end_of_month )
+  %>
+
+<% if !defined?(no_include) || no_include != true %>
+  <link rel="stylesheet" href="https://uicdn.toast.com/calendar/latest/toastui-calendar.min.css" />
+  <script src="https://uicdn.toast.com/calendar/latest/toastui-calendar.min.js"></script>
+<% end %>
+
+
+<center><h2><%= calendar_date.strftime("%Y-%m") %></h2></center>
+
+<!-- Toast UI Calendar 컨테이너 -->
+<div id="<%= calendar_id %>" style='width:100%; height:100vh;'></div>
+
+<%# Toast UI Calendar 초기화를 위한 JavaScript 추가 %>
+<script type="text/javascript">
+  (function() {
+    // 즉시 실행 함수로 변수 스코프 격리
+    const initializeCalendar = () => {
+      const container = document.getElementById('<%= calendar_id %>');
+      if (!container) return; // 컨테이너가 없으면 초기화하지 않음
+      
+      const calendar = new tui.Calendar(container, {
+        defaultView: 'month',
+        isReadOnly: true,
+        usageStatistics: false,
+        month: {
+          dayNames: ['일', '월', '화', '수', '목', '금', '토'],
+          startDayOfWeek: 0,
+        },
+      });
+
+      // 이벤트 클릭 핸들러 추가
+      calendar.on('clickEvent', function(event) {
+        // event.event 객체에 url이 있으면 페이지 이동
+        alert( typeof( event.event ) );
+        if (event.event && event.event.url) {
+          window.location.href = event.event.url;
+        }
+      });
+
+      <%
+      cnt = 0
+        events = calendar.all_events.map do |event|
+          cnt += 1
+          if event.is_a?(Issue)
+            { 
+              id: event.id,
+              name: event.subject,
+              start_date: event.start_date ? event.start_date.to_date : event.due_date.to_date,
+              due_date: event.due_date ? event.due_date.to_date : event.start_date.to_date,
+              color: color[event.priority.position][0] || '#777',
+              url: "/issues/#{event.id}",
+              text_color: color[event.priority.position][1] || '#333'
+            }
+          elsif event.is_a?(Version)
+            {
+              id: event.id,
+              name: event.name,
+              start_date: event.effective_date.to_date,
+              due_date: event.effective_date.to_date,
+              color: '#26b',
+              text_color: '#fff',
+              url: "/versions/#{event.id}"
+            }
+          elsif event.is_a?(TxMoreCalendarHelper::CalendarEvent)
+            {
+              id: random_id + cnt,
+              name: event.name + ' : ' + event.version.name,
+              start_date: event.start_date ? event.start_date.to_date : event.due_date.to_date,
+              due_date: event.due_date ? event.due_date.to_date : event.start_date.to_date,
+              color: '#fff',
+              text_color: '#369',
+              url: event.version ? "/versions/#{event.version.id}" : nil
+            }
+          end
+        end
+      %>
+
+      // 이벤트 데이터 변환
+      const calendarEvents = <%= events.map do |event|
+        start_date_str = event[:start_date].strftime('%Y-%m-%d')
+        # 하루짜리 이벤트면 end는 start와 동일하게 설정
+        if event[:start_date] == event[:due_date]
+          end_date_str = start_date_str
+        else
+          # 여러 날짜에 걸친 이벤트는 종료일 다음날로 설정
+          end_date_str = (event[:due_date] + 1).strftime('%Y-%m-%d')
+        end
+        
+        {
+          id: event[:id].to_s,
+          title: event[:name],
+          start: start_date_str,
+          end: end_date_str,
+          isAllDay: true,
+          category: 'allday',
+          backgroundColor: event[:color],
+          borderColor: event[:color],
+          color: event[:text_color],
+          url: event[:url]
+        }
+      end.to_json.html_safe %>;
+      
+      // 공휴일 데이터 추가
+      const holidayEvents = <%= holidays.map do |date,holiday|
+        {
+          id: "holiday_#{holiday[:id]}",
+          title: holiday[:name],
+          start: holiday[:date].strftime('%Y-%m-%d'),
+          end: holiday[:date].strftime('%Y-%m-%d'),
+          isAllDay: true,
+          category: 'allday',
+          backgroundColor: '#990000',
+          borderColor: '#990000',
+          color: '#ffffff'
+        }
+      end.to_json.html_safe %>;
+      
+      // 캘린더에 이벤트 추가
+      calendar.createEvents([...holidayEvents, ...calendarEvents]);
+
+      // 초기 날짜 설정
+      calendar.setDate('<%= calendar_date.strftime("%Y-%m-%d") %>');
+    };
+
+    // DOM이 준비되었을 때만 실행
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeCalendar);
+    } else {
+      initializeCalendar();
+    }
+  })();
+</script>

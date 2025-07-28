@@ -1,0 +1,20 @@
+<p>
+    <div class="item">
+    <h3>달력에 강제 표시할 일감 유형</h3>
+    <div class="select-wrapper">
+    <%= select_tag('settings_redmine_tx_more_calendar_calendar_tracker', 
+        options_for_select(Tracker.all.order(:name).map { |t| [ t.name, t.id ] }, 
+        selected: Setting[:plugin_redmine_tx_more_calendar][:calendar_tracker].to_s.tr('[]" ','').split(',').map {|i| i.to_i}), 
+        name: 'settings[calendar_tracker][]', multiple: true ) %>
+    </div>
+    </div>
+</p>
+
+<p>
+    <div class="item">
+    <h3>달력에서 검색조건 숨김</h3>
+    <%= check_box_tag 'settings[hide_query_form]', true, Setting[:plugin_redmine_tx_more_calendar][:hide_query_form] %>
+    </div>
+</p>
+
+
