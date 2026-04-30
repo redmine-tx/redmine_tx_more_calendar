@@ -19,7 +19,19 @@ Rails.application.config.assets.precompile += %w(
 )
 
 Rails.application.config.after_initialize do
+  require_dependency File.expand_path('../app/models/holiday', __FILE__)
   require_dependency File.expand_path('../lib/tx_more_calendar_helper', __FILE__)
 
   Redmine::Helpers::Calendar.send(:prepend, TxMoreCalendarHelper::TxCalendarHelperPatch)
+
+  begin
+    if ActiveRecord::Base.connection.data_source_exists?('holidays')
+      Holiday.update
+      Rails.logger.info 'RedmineTxMoreCalendar: holiday data updated on startup'
+    else
+      Rails.logger.info 'RedmineTxMoreCalendar: skipped holiday data startup update because holidays table does not exist'
+    end
+  rescue => e
+    Rails.logger.warn "RedmineTxMoreCalendar: failed to update holiday data on startup: #{e.class}: #{e.message}"
+  end
 end
